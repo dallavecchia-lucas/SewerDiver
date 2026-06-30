@@ -3328,26 +3328,29 @@ function diverBody(g,moving,kick){
 }
 
 // ---- HUD ----
-// 3x5 segmented pixel font. B/C/D/F/S/T/U/W/M added (beyond the original HUD-label subset)
-// so the same in-game font can also spell the boot logo / title / first-time-prompt text.
+// 3x5 segmented pixel font (most glyphs). B/C/D/F/S/T/U/M added (beyond the original HUD-label
+// subset) so the same in-game font can also spell the boot logo / title / first-time-prompt text.
+// W is a wider 5x5 cell — a 3-wide W with one crossbar reads as an H, so it gets its own width.
 const FONT3={O:['111','101','101','101','111'],X:['101','101','010','101','101'],Y:['101','101','010','010','010'],G:['111','100','101','101','111'],E:['111','100','111','100','111'],N:['101','111','111','111','101'],H:['101','101','111','101','101'],P:['111','101','111','100','100'],A:['010','101','111','101','101'],I:['111','010','010','010','111'],R:['110','101','110','101','101'],L:['100','100','100','100','111'],V:['101','101','101','101','010'],
-  B:['110','101','111','101','110'],C:['111','100','100','100','111'],D:['110','101','101','101','110'],F:['111','100','111','100','100'],S:['111','100','111','001','111'],T:['111','010','010','010','010'],U:['101','101','101','101','111'],W:['101','101','101','111','101'],M:['101','111','101','101','101'],
+  B:['110','101','111','101','110'],C:['111','100','100','100','111'],D:['110','101','101','101','110'],F:['111','100','111','100','100'],S:['111','100','111','001','111'],T:['111','010','010','010','010'],U:['101','101','101','101','111'],M:['101','111','101','101','101'],
+  W:['10001','10001','10101','10101','10101'],  // two full-height outer legs + a shorter centre leg — no crossbar, so it can't read as H
   ' ':['000','000','000','000','000']};
-function pxText(c,str,x,y,col){let cx=x;for(const ch of str){const g=FONT3[ch];if(g){for(let r=0;r<5;r++)for(let i=0;i<3;i++)if(g[r][i]==='1')px(c,cx+i,y+r,1,1,col);}cx+=4;}}
+function glyphW(ch){const g=FONT3[ch];return g?g[0].length:3;}
+function pxText(c,str,x,y,col){let cx=x;for(const ch of str){const g=FONT3[ch];if(g){const w=g[0].length;for(let r=0;r<5;r++)for(let i=0;i<w;i++)if(g[r][i]==='1')px(c,cx+i,y+r,1,1,col);cx+=w+1;}else cx+=4;}}
 // big segmented-LCD text: same FONT3 glyphs, blown up `scale`x and centred on (cx,cy)
-function lcdWidth(str,scale,gap){gap=gap==null?1:gap;return str.length*(3+gap)*scale-gap*scale;}
+function lcdWidth(str,scale,gap){gap=gap==null?1:gap;let w=0;for(const ch of str)w+=(glyphW(ch.toUpperCase())+gap)*scale;return w-gap*scale;}
 function pxTextXL(c,str,cx,cy,scale,col,gap){
   gap=gap==null?1:gap;
   let x=Math.round(cx-lcdWidth(str,scale,gap)/2), y=Math.round(cy-2.5*scale);
-  for(const ch of str){const g=FONT3[ch.toUpperCase()];
-    if(g){for(let r=0;r<5;r++)for(let i=0;i<3;i++)if(g[r][i]==='1')px(c,x+i*scale,y+r*scale,scale,scale,col);}
-    x+=(3+gap)*scale;}
+  for(const ch of str){const u=ch.toUpperCase(),g=FONT3[u],gw=glyphW(u);
+    if(g){for(let r=0;r<5;r++)for(let i=0;i<gw;i++)if(g[r][i]==='1')px(c,x+i*scale,y+r*scale,scale,scale,col);}
+    x+=(gw+gap)*scale;}
 }
 // dim "all segments" ghost backdrop — the classic unlit-LCD-cell look, sits behind pxTextXL
 function pxTextGhost(c,str,cx,cy,scale,col,gap){
   gap=gap==null?1:gap;
   let x=Math.round(cx-lcdWidth(str,scale,gap)/2), y=Math.round(cy-2.5*scale);
-  for(const ch of str){if(ch!==' ')px(c,x,y,3*scale,5*scale,col);x+=(3+gap)*scale;}
+  for(const ch of str){const u=ch.toUpperCase(),gw=glyphW(u);if(ch!==' ')px(c,x,y,gw*scale,5*scale,col);x+=(gw+gap)*scale;}
 }
 function pxDisc(c,cx,cy,r,col){
   for(let yy=-r;yy<=r;yy++){const hw=Math.sqrt(Math.max(0,r*r-yy*yy));px(c,Math.round(cx-hw),Math.round(cy+yy),Math.max(1,Math.round(hw*2)),1,col);}
@@ -3670,8 +3673,17 @@ mineEl.addEventListener('click',e=>{const b=e.target.closest('[data-mine]');if(!
  * straight to gameplay, but still runs the same CRT-static wipe either way. */
 function startStudioIntro(){
   const stage=document.getElementById('stage');
-  const ctl=document.getElementById('controls'); if(ctl)ctl.style.visibility='hidden';
+  const ctl=document.getElementById('controls');                 // stays visible the whole time — see onCtlPress below
+  const crtEl=document.getElementById('crt'); if(crtEl)crtEl.style.display='none'; // flat LCD glass, not a CRT — no scanline sweep here
   overlayEl.classList.add('hidden');
+
+  // classic pale green-cyan LCD glass + near-black "ink" segments, like a Game & Watch / calculator display
+  const LCD_BG='#a3e8d4', LCD_BG2='#8ed7c2', INK='#16251f';
+  const GHOST=shade(LCD_BG,0.93);                                 // barely-there "unlit segment" backdrop
+  function lerpHex(h1,h2,u){const a=hex2rgb(h1),b=hex2rgb(h2);const L=(x,y)=>Math.round(x+(y-x)*u);return`rgb(${L(a[0],b[0])},${L(a[1],b[1])},${L(a[2],b[2])})`;}
+  function fillLcdBg(){const g=ctx.createRadialGradient(VW/2,VH*0.4,VH*0.15,VW/2,VH*0.4,VH*0.75);g.addColorStop(0,LCD_BG);g.addColorStop(1,LCD_BG2);ctx.fillStyle=g;ctx.fillRect(0,0,VW,VH);}
+  function inkOn(){ctx.shadowColor='rgba(8,18,14,0.35)';ctx.shadowOffsetX=1;ctx.shadowOffsetY=1;ctx.shadowBlur=0;}      // small embossed drop-shadow, like ink printed on glass
+  function inkOff(){ctx.shadowColor='transparent';ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;ctx.shadowBlur=0;}
 
   let phase='power', phaseT=0, running=true;
 
@@ -3691,12 +3703,23 @@ function startStudioIntro(){
   }
   function onTap(){if(!running||phase==='power'||phase==='firsttime')return;audioInit();advance();}
   stage.addEventListener('pointerdown',onTap);
+  // the imitation casing's d-pad/buttons stay visible & lit the whole time; any press here just
+  // skips the current beat (capture phase + stopPropagation so the real button actions, which
+  // are no-ops before state.mode==='play' anyway, never get a chance to fire underneath).
+  function onCtlPress(e){
+    if(!running)return;
+    e.stopPropagation();
+    if(phase==='power'||phase==='firsttime')return;
+    audioInit();advance();
+  }
+  if(ctl)ctl.addEventListener('pointerdown',onCtlPress,true);
 
   function finish(playTutorial){
     running=false;
     stage.removeEventListener('pointerdown',onTap);
+    if(ctl)ctl.removeEventListener('pointerdown',onCtlPress,true);
+    if(crtEl)crtEl.style.display='';
     btns.remove();
-    if(ctl)ctl.style.visibility='';
     if(playTutorial)startBootTutorial();else quickStaticToGame();
   }
 
@@ -3707,57 +3730,65 @@ function startStudioIntro(){
       const y=topY+r*3, ph=t*0.03+r*0.5;
       const xL=cx+Math.sin(ph)*amp, xR=cx+Math.sin(ph+Math.PI)*amp;
       px(ctx,Math.round(xL)-1,y,2,2,col); px(ctx,Math.round(xR)-1,y,2,2,col);
-      if(r%4===1){const x0=Math.min(xL,xR),x1=Math.max(xL,xR);px(ctx,Math.round(x0),y,Math.max(1,Math.round(x1-x0)),1,shade(col,0.7));}
+      if(r%4===1){const x0=Math.min(xL,xR),x1=Math.max(xL,xR);px(ctx,Math.round(x0),y,Math.max(1,Math.round(x1-x0)),1,col);}
     }
     px(ctx,cx-7,topY-6,6,3,col); px(ctx,cx+1,topY-6,6,3,col); px(ctx,cx-1,topY-3,2,4,col); // leaf sprouts
   }
   function drawWaves(cx,y,w,t,col){
     for(let x=-w/2;x<w/2;x+=3){const yy=y+Math.round(Math.sin(x*0.18+t*0.05)*2);px(ctx,Math.round(cx+x),yy,3,2,col);}
   }
-  function drawDweller(cx,cy,t){
-    pxDisc(ctx,cx,cy,46,'#0a141c'); pxDisc(ctx,cx,cy,46,'rgba(70,208,255,0.07)');
-    for(let i=0;i<8;i++){const a=i/8*Math.PI*2;px(ctx,Math.round(cx+Math.cos(a)*44)-1,Math.round(cy+Math.sin(a)*44)-1,2,2,'#243a30');} // rivets
-    px(ctx,cx-22,cy-4,44,30,'#0a120e'); // hood / shoulders
-    for(let i=0;i<7;i++)px(ctx,cx-22+i*7,cy+24+((i%2)?3:0),5,4,'#0a120e'); // ragged hem
-    px(ctx,cx-6,cy-14,12,12,'#0a120e'); // hood peak
+  function drawDweller(cx,cy,t,ink,bg){
+    const well=shade(bg,0.92);
+    pxDisc(ctx,cx,cy,46,well);
+    for(let i=0;i<8;i++){const a=i/8*Math.PI*2;px(ctx,Math.round(cx+Math.cos(a)*44)-1,Math.round(cy+Math.sin(a)*44)-1,2,2,ink);} // rivets
+    px(ctx,cx-22,cy-4,44,30,ink); // hood / shoulders
+    for(let i=0;i<7;i++)px(ctx,cx-22+i*7,cy+24+((i%2)?3:0),5,4,ink); // ragged hem
+    px(ctx,cx-6,cy-14,12,12,ink); // hood peak
     const blink=((t/40|0)%9===0);
-    if(!blink){px(ctx,cx-15,cy-4,11,8,'#16241c');px(ctx,cx-13,cy-2,7,4,'#46d0ff');px(ctx,cx+4,cy-4,11,8,'#16241c');px(ctx,cx+6,cy-2,7,4,'#46d0ff');}
-    else{px(ctx,cx-13,cy-1,7,1,'#1c6f93');px(ctx,cx+6,cy-1,7,1,'#1c6f93');}
-    px(ctx,cx-4,cy,8,2,'#0a120e'); // bridge
-    px(ctx,cx-7,cy+10,14,7,'#10201a'); px(ctx,cx-5,cy+12,10,3,'#1c2a22'); // respirator
-    px(ctx,cx-20,cy+6,3,3,'#ff9a3c'); px(ctx,cx+16,cy+14,2,2,'#ff9a3c'); // rust grime
+    if(!blink){px(ctx,cx-15,cy-4,11,8,well);px(ctx,cx-13,cy-2,7,4,ink);px(ctx,cx+4,cy-4,11,8,well);px(ctx,cx+6,cy-2,7,4,ink);}
+    else{px(ctx,cx-13,cy-1,7,1,ink);px(ctx,cx+6,cy-1,7,1,ink);}
+    px(ctx,cx-4,cy,8,2,ink); // bridge
+    px(ctx,cx-7,cy+10,14,7,ink); px(ctx,cx-5,cy+12,10,3,well); // respirator
+    px(ctx,cx-20,cy+6,2,2,ink); px(ctx,cx+17,cy+14,2,2,ink); // grime flecks
   }
 
   /* ---- per-phase render ---- */
   function render(t){
-    ctx.fillStyle='#04070b'; ctx.fillRect(0,0,VW,VH);
+    fillLcdBg();
     const cx=VW/2;
     if(phase==='power'){
-      if(phaseT>16&&phaseT<22){ctx.fillStyle='rgba(124,255,196,0.5)';ctx.fillRect(0,0,VW,VH);}
+      const a=Math.min(1,phaseT/22);                              // backlight ramping up to full LCD tone
+      ctx.fillStyle=`rgba(18,28,24,${(1-a)*0.85})`; ctx.fillRect(0,0,VW,VH);
     } else if(phase==='logo'){
-      const a=Math.min(1,phaseT/18);
-      drawDna(cx,VH*0.30,90,t,shade('#7fff3c',a));
-      drawWaves(cx,VH*0.30+96,140,t,shade('#7fff3c',a*0.7));
-      pxTextGhost(ctx,'BIOCRAFTED',cx,VH*0.30+128,3,'rgba(127,255,60,0.07)');
-      if(phaseT>14)pxTextXL(ctx,'BIOCRAFTED',cx,VH*0.30+128,3,'#7fff3c');
-      pxTextGhost(ctx,'STUDIOS',cx,VH*0.30+148,2,'rgba(70,208,255,0.07)');
-      if(phaseT>26)pxTextXL(ctx,'STUDIOS',cx,VH*0.30+148,2,'#46d0ff');
+      const a=Math.min(1,phaseT/18), ink=lerpHex(LCD_BG,INK,a);
+      inkOn();
+      drawDna(cx,VH*0.30,90,t,ink);
+      drawWaves(cx,VH*0.30+96,140,t,ink);
+      pxTextGhost(ctx,'BIOCRAFTED',cx,VH*0.30+128,3,GHOST);
+      if(phaseT>14)pxTextXL(ctx,'BIOCRAFTED',cx,VH*0.30+128,3,INK);
+      pxTextGhost(ctx,'STUDIOS',cx,VH*0.30+148,2,GHOST);
+      if(phaseT>26)pxTextXL(ctx,'STUDIOS',cx,VH*0.30+148,2,INK);
+      inkOff();
     } else if(phase==='presents'){
-      pxTextGhost(ctx,'PRESENTS',cx,VH*0.46,3,'rgba(70,208,255,0.07)');
-      if(phaseT>6)pxTextXL(ctx,'PRESENTS',cx,VH*0.46,3,'#46d0ff');
-      const n=3; for(let i=0;i<n;i++){const on=((phaseT/14|0)%(n+1))>i;px(ctx,Math.round(cx-10+i*10),VH*0.46+22,4,4,on?'#46d0ff':'#16303c');}
+      inkOn();
+      pxTextGhost(ctx,'PRESENTS',cx,VH*0.46,3,GHOST);
+      if(phaseT>6)pxTextXL(ctx,'PRESENTS',cx,VH*0.46,3,INK);
+      const n=3; for(let i=0;i<n;i++){const on=((phaseT/14|0)%(n+1))>i;px(ctx,Math.round(cx-10+i*10),VH*0.46+22,4,4,on?INK:GHOST);}
+      inkOff();
     } else if(phase==='title'){
-      const glitch=Math.random()<0.04, jit=glitch?(Math.random()<0.5?-1:1):0;
-      const sw=lcdWidth('SEWER',4,1), dw=lcdWidth('DIVER',4,1), gap=6;
-      pxTextXL(ctx,'SEWER',cx-(dw+gap)/2+jit,VH*0.40,4,'#7fff3c');
-      pxTextXL(ctx,'DIVER',cx+(sw+gap)/2+jit,VH*0.40,4,'#46d0ff');
-      px(ctx,cx-60,VH*0.40+26,120,1,'#1c6f93');
-      pxTextXL(ctx,'THE DESCENT',cx,VH*0.40+40,2,'#7fd0ee');
-      if(phaseT>30&&(phaseT/20|0)%2===0)pxTextXL(ctx,'TAP TO CONTINUE',cx,VH*0.40+76,1,'#335a6e');
+      const titleScale=VW>=240?4:3;
+      inkOn();
+      pxTextXL(ctx,'SEWER DIVER',cx,VH*0.40,titleScale,INK);
+      px(ctx,cx-60,VH*0.40+26,120,1,INK);
+      pxTextXL(ctx,'THE DESCENT',cx,VH*0.40+40,2,INK);
+      if(phaseT>30&&(phaseT/20|0)%2===0)pxTextXL(ctx,'TAP TO CONTINUE',cx,VH*0.40+76,1,INK);
+      inkOff();
     } else if(phase==='firsttime'){
-      drawDweller(cx,VH*0.34,t);
-      pxTextGhost(ctx,'FIRST TIME HERE',cx,VH*0.34+70,2,'rgba(124,255,196,0.06)');
-      pxTextXL(ctx,'FIRST TIME HERE',cx,VH*0.34+70,2,'#bfefff');
+      inkOn(); drawDweller(cx,VH*0.34,t,INK,LCD_BG); inkOff();
+      inkOn();
+      pxTextGhost(ctx,'FIRST TIME HERE',cx,VH*0.34+70,2,GHOST);
+      pxTextXL(ctx,'FIRST TIME HERE',cx,VH*0.34+70,2,INK);
+      inkOff();
     }
   }
 
