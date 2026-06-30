@@ -3,1149 +3,454 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kanal Mrtvih</title>
+    <title>See Diver: The Descent</title>
     <style>
-        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-
+        :root{
+            --lcd:#7cffc4;
+            --lcd-soft:#bdfde0;
+            --lcd-dim:#16261f;
+            --cyan:#21f3ff;
+            --magenta:#ff2bd6;
+            --acid:#9bff4d;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-select:none; }
+        html,body{ height:100%; }
         body {
-            background: #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            font-family: 'Courier New', Courier, monospace;
-            overflow: hidden;
+            background:#000; display:flex; justify-content:center; align-items:center;
+            min-height:100vh; font-family:'Courier New', Courier, monospace; overflow:hidden;
         }
 
-        #phone {
-            width: 360px; height: 720px;
-            background: #080808;
-            border: 2px solid #151515;
-            border-radius: 40px;
-            position: relative; overflow: hidden;
-            box-shadow: 0 0 60px rgba(180,80,0,0.05), inset 0 0 30px rgba(0,0,0,0.6);
+        /* ═══════ DEVICE FRAME ═══════ */
+        #device {
+            width:360px; height:720px; background:#0a0a0a;
+            border:2px solid #1a1a1a; border-radius:34px;
+            position:relative; overflow:hidden;
+            box-shadow:0 0 60px rgba(124,255,196,0.05), inset 0 0 30px rgba(0,0,0,0.7);
+            padding:10px 10px 24px;
+        }
+        #brand-plate{
+            position:absolute; bottom:5px; left:0; right:0; text-align:center;
+            font-size:7px; letter-spacing:3px; color:#222; text-transform:uppercase; z-index:5;
+        }
+        #screen{ width:100%; height:100%; position:relative; overflow:hidden; background:#000; border-radius:20px; }
+
+        .scanlines{ position:absolute; inset:0; pointer-events:none; z-index:1000;
+            background:repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.05) 2px, rgba(0,0,0,0.05) 4px); }
+        .vignette{ position:absolute; inset:0; pointer-events:none; z-index:998; box-shadow:inset 0 0 60px rgba(0,0,0,0.85); }
+        .screen-flicker{ position:absolute; inset:0; pointer-events:none; z-index:999; opacity:0; }
+        @keyframes flickerPulse{
+            0%{ background:rgba(124,255,196,0.06); opacity:1 }
+            40%{ background:rgba(0,0,0,0.85); opacity:0.9 }
+            70%{ background:rgba(124,255,196,0.03); opacity:0.5 }
+            100%{ background:transparent; opacity:0 }
         }
 
-        #screen { width:100%; height:100%; position:relative; overflow:hidden; background:#040404; }
+        .view{ position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:26px; }
+        .view.active{ display:flex; }
 
-        .scanlines {
-            position:absolute; inset:0;
-            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
-            pointer-events:none; z-index:1000;
+        /* ═══════ LCD TEXT COMPONENT ═══════ */
+        .lcd-text{
+            position:relative; font-family:'Courier New',monospace; font-weight:700;
+            text-transform:uppercase; color:var(--lcd); white-space:pre;
+            text-shadow:0 0 6px rgba(124,255,196,0.65), 0 0 14px rgba(124,255,196,0.3);
         }
-        .screen-flicker { position:absolute; inset:0; pointer-events:none; z-index:999; opacity:0; }
+        .lcd-text::before{
+            content:attr(data-ghost); position:absolute; left:0; top:0;
+            color:var(--lcd-dim); text-shadow:none; z-index:-1;
+        }
+        .lcd-ch{ display:inline-block; opacity:0; animation:lcdOn 0.1s steps(1) forwards; }
+        @keyframes lcdOn{ to{ opacity:1 } }
 
-        .view { position:absolute; top:0; left:0; width:100%; height:100%; display:none; flex-direction:column; }
-        .view.active { display:flex; }
+        /* ═══════ POWER ON ═══════ */
+        .pwr-dot{
+            width:6px; height:6px; border-radius:50%; background:var(--lcd);
+            box-shadow:0 0 10px var(--lcd); animation:pwrBlink 0.5s steps(1) infinite;
+        }
+        @keyframes pwrBlink{ 50%{ opacity:0 } }
 
-        /* ── NOTIF ── */
-        .notif-bar {
-            position:absolute; top:28px; left:8px; right:8px;
-            background:rgba(10,4,0,0.96); border:1px solid #2a1500;
-            border-radius:10px; padding:10px 12px; z-index:800;
-            transform:translateY(-120px);
-            transition:transform 0.35s cubic-bezier(0.4,0,0.2,1);
-        }
-        .notif-bar.show { transform:translateY(0); }
-        .notif-bar-src { font-size:9px; color:#cc6622; text-transform:uppercase; letter-spacing:1.5px; display:block; margin-bottom:3px; }
-        .notif-bar-msg { font-size:10px; color:#887766; line-height:1.4; }
+        /* ═══════ LOGO 1 — BIOCRAFTED STUDIOS ═══════ */
+        #logo1{ gap:8px; cursor:pointer; }
+        .dna-wrap{ width:150px; height:172px; }
+        .dna-line{ fill:none; stroke:var(--lcd); stroke-width:3; stroke-linecap:round;
+            filter:url(#dnaGlow); stroke-dasharray:1000; stroke-dashoffset:1000; animation:dnaDraw 1s ease forwards; }
+        .dna-rung{ stroke-width:2; }
+        .dna-wave{ stroke-width:2; }
+        .dna-leaf{ fill:var(--lcd); filter:url(#dnaGlow); opacity:0; animation:leafFade 0.6s ease forwards; }
+        @keyframes dnaDraw{ to{ stroke-dashoffset:0 } }
+        @keyframes leafFade{ to{ opacity:0.9 } }
+        .logo1-name{ font-size:20px; letter-spacing:10px; margin-top:4px; }
+        .logo1-sub{ font-size:11px; letter-spacing:7px; color:var(--lcd-soft); opacity:0.75; margin-top:6px; }
+        .tap-hint{ position:absolute; bottom:22px; font-size:7px; letter-spacing:2px; color:#2a3a32; animation:hintBlink 1.6s infinite; }
+        @keyframes hintBlink{ 50%{ opacity:0.15 } }
 
-        /* ── TITLE ── */
-        #title-screen {
-            background:#000; align-items:center; justify-content:center;
-            padding:40px 28px; text-align:center;
-        }
-        .title-glyph { font-size:44px; margin-bottom:18px; filter:grayscale(0.3); }
-        .title-name { font-size:15px; color:#cc6622; letter-spacing:6px; text-transform:uppercase; margin-bottom:6px; }
-        .title-sub { font-size:9px; color:#553311; letter-spacing:3px; text-transform:uppercase; margin-bottom:40px; }
-        .title-lore { font-size:10px; color:#555; line-height:1.9; margin-bottom:40px; text-align:left; max-height:260px; overflow-y:auto; }
-        .title-btn {
-            padding:12px 36px; border:1px solid #2a1500; border-radius:4px;
-            color:#cc6622; font-size:11px; font-family:monospace; cursor:pointer;
-            text-transform:uppercase; letter-spacing:2px; transition:all 0.2s;
-        }
-        .title-btn:active { background:rgba(200,100,30,0.1); }
+        /* ═══════ LOGO 2 — PRESENTS ═══════ */
+        #logo2{ cursor:pointer; }
+        .presents{ font-size:14px; letter-spacing:6px; }
 
-        /* ── TUNER SHELL ── */
-        #tuner-screen { background:#040404; }
-        .tuner-top {
-            padding:36px 14px 0; flex-shrink:0;
+        /* ═══════ TITLE — SEE DIVER: THE DESCENT ═══════ */
+        #title-view{ cursor:pointer; gap:6px; }
+        .cyber-title{
+            position:relative; font-size:32px; letter-spacing:3px; font-weight:700; color:#fff;
         }
-        .tuner-title { font-size:10px; color:#cc6622; letter-spacing:3px; text-transform:uppercase; margin-bottom:2px; }
-        .tuner-subtitle { font-size:8px; color:#443322; letter-spacing:2px; }
+        .cyber-title::before, .cyber-title::after{
+            content:attr(data-text); position:absolute; left:0; top:0; width:100%;
+        }
+        .cyber-title::before{
+            color:var(--cyan); clip-path:inset(0 0 55% 0); -webkit-clip-path:inset(0 0 55% 0);
+            transform:translate(-2px,-1px); animation:glA 2.6s infinite linear;
+        }
+        .cyber-title::after{
+            color:var(--magenta); clip-path:inset(55% 0 0 0); -webkit-clip-path:inset(55% 0 0 0);
+            transform:translate(2px,1px); animation:glB 2.6s infinite linear;
+        }
+        @keyframes glA{
+            0%,100%{ clip-path:inset(0 0 55% 0) } 45%{ clip-path:inset(10% 0 70% 0) }
+            50%{ clip-path:inset(70% 0 5% 0) } 55%{ clip-path:inset(0 0 55% 0) }
+        }
+        @keyframes glB{
+            0%,100%{ clip-path:inset(55% 0 0 0) } 45%{ clip-path:inset(80% 0 0 0) }
+            50%{ clip-path:inset(5% 0 60% 0) } 55%{ clip-path:inset(55% 0 0 0) }
+        }
+        .cyber-rule{ width:140px; height:1px; margin:16px 0; background:linear-gradient(90deg,transparent,var(--magenta),var(--cyan),transparent); }
+        .cyber-sub{ font-size:13px; letter-spacing:9px; color:var(--cyan); text-shadow:0 0 8px var(--cyan); }
+        .cyber-tagline{ position:absolute; bottom:22px; font-size:7px; letter-spacing:2px; color:#335; animation:hintBlink 1.6s infinite; }
 
-        /* Signal + readout */
-        .sig-bar {
-            margin:8px 14px 0; padding:8px 12px;
-            background:#060606; border:1px solid #111; border-radius:4px;
+        /* ═══════ FIRST TIME? ═══════ */
+        #firsttime{ gap:18px; }
+        .portrait-frame{ width:180px; height:180px; }
+        .lens{ fill:var(--acid); filter:url(#mglow); }
+        .ear-glow{ fill:#1a0a14; stroke:var(--magenta); stroke-width:1.2; }
+        .ear-wire{ stroke:var(--magenta); stroke-width:1.2; }
+        .dialogue-box{
+            width:100%; border:1px solid #1a2a20; border-radius:6px; padding:14px;
+            background:rgba(0,20,10,0.4);
         }
-        .sig-label { font-size:7px; color:#555; text-transform:uppercase; letter-spacing:2px; margin-bottom:4px; display:flex; justify-content:space-between; }
-        .sig-label span { color:#cc6622; }
-        .sig-track { height:3px; background:#0d0d0d; border-radius:2px; overflow:hidden; }
-        .sig-fill { height:100%; background:linear-gradient(90deg,#1a0d00,#cc6622); width:0%; transition:width 0.4s; border-radius:2px; }
-        .sig-fill.hot { background:linear-gradient(90deg,#2a0000,#cc2222); }
+        .dq-text{ font-size:13px; letter-spacing:2px; color:var(--lcd); margin-bottom:12px; text-transform:uppercase; }
+        .ft-btns{ display:flex; gap:10px; justify-content:center; }
+        .lcd-btn{
+            padding:10px 26px; border:1px solid #1a2a20; border-radius:4px;
+            color:var(--lcd); font-size:10px; letter-spacing:2px; text-transform:uppercase;
+            font-family:'Courier New',monospace; cursor:pointer; background:rgba(124,255,196,0.04);
+            transition:background 0.15s;
+        }
+        .lcd-btn:active{ background:rgba(124,255,196,0.18); }
+        .lcd-btn.alt{ color:#7a8a99; border-color:#1a1a2a; }
 
-        .ghost-readout {
-            margin:6px 14px 0; padding:6px 10px;
-            background:#050505; border:1px solid #0d0d0d; border-radius:3px;
-            min-height:32px; position:relative; overflow:hidden;
+        /* ═══════ TUTORIAL ═══════ */
+        #tutorial{ justify-content:space-between; }
+        .tut-skip{
+            position:absolute; top:18px; right:18px; font-size:8px; letter-spacing:1.5px;
+            color:#5a7a8a; cursor:pointer; text-transform:uppercase; border-bottom:1px dotted #335;
         }
-        .gr-label { font-size:7px; color:#332200; text-transform:uppercase; letter-spacing:2px; margin-bottom:3px; }
-        .gr-text { font-size:9px; color:#664422; line-height:1.5; min-height:14px; transition:color 0.3s; }
-        .gr-text.active { color:#cc6622; }
-        .gr-text.warn { color:#cc2222; }
-        .gr-match { font-size:7px; color:#332200; margin-top:3px; letter-spacing:1px; }
-        .gr-match span { color:#cc6622; }
+        .tut-card{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; }
+        .tut-step-label{ font-size:8px; letter-spacing:3px; color:#446; }
+        .tut-step-text{ font-size:13px; line-height:1.8; color:var(--lcd-soft); max-width:240px; }
+        .tut-dots{ display:flex; gap:6px; justify-content:center; margin:16px 0; }
+        .tut-dot{ width:5px; height:5px; border-radius:50%; background:#1a2a20; }
+        .tut-dot.on{ background:var(--lcd); box-shadow:0 0 5px var(--lcd); }
 
-        /* ── TABS ── */
-        .tab-bar {
-            display:flex; margin:8px 14px 0; gap:0; flex-shrink:0;
-        }
-        .tab-btn {
-            flex:1; padding:7px 0; font-size:8px; color:#444;
-            text-align:center; text-transform:uppercase; letter-spacing:1.5px;
-            border:1px solid #111; border-bottom:none;
-            cursor:pointer; transition:all 0.15s;
-            background:#060606; user-select:none;
-        }
-        .tab-btn:first-child { border-radius:4px 0 0 0; }
-        .tab-btn:last-child { border-radius:0 4px 0 0; }
-        .tab-btn.active { color:#cc6622; background:#0a0a0a; border-color:#1a0d00; }
+        /* ═══════ CRT STATIC TRANSITION ═══════ */
+        #crt-view{ background:#000; padding:0; }
+        #crt-canvas{ width:100%; height:100%; image-rendering:pixelated; image-rendering:crisp-edges; opacity:0.85; }
+        #crt-view.crt-fade #crt-canvas{ transition:opacity 0.4s; opacity:0; }
+        .crt-sync{ position:absolute; left:0; right:0; height:14px; top:-14px; background:rgba(255,255,255,0.08); animation:syncRoll 1.1s linear infinite; }
+        @keyframes syncRoll{ 0%{ top:-14px } 100%{ top:100% } }
+        .crt-flash{ position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; }
+        .crt-flash.on{ animation:crtFlash 0.15s ease-out; }
+        @keyframes crtFlash{ 0%{ opacity:0.9 } 100%{ opacity:0 } }
 
-        .tab-content {
-            flex:1; overflow-y:auto;
-            border:1px solid #111; border-top:none;
-            margin:0 14px;
-            background:#0a0a0a;
-        }
-        .tab-content::-webkit-scrollbar { width:2px; }
-        .tab-content::-webkit-scrollbar-thumb { background:#111; }
-        .tab-pane { display:none; padding:10px; }
-        .tab-pane.active { display:block; }
+        /* ═══════ GAME ═══════ */
+        #game-view{ gap:4px; }
+        .gv-header{ font-size:9px; letter-spacing:4px; color:var(--cyan); margin-bottom:20px; }
+        .gv-depth-label{ font-size:8px; letter-spacing:3px; color:#456; margin-bottom:4px; }
+        .gv-depth{ font-size:36px; color:var(--acid); text-shadow:0 0 10px var(--acid); }
+        .gv-depth small{ font-size:16px; }
+        .gv-status{ font-size:10px; letter-spacing:2px; color:var(--lcd-soft); margin-top:24px; }
+        .gv-cursor{ display:inline-block; width:7px; height:11px; background:var(--lcd); margin-left:2px; vertical-align:middle; animation:blink 0.9s step-end infinite; }
+        @keyframes blink{ 50%{ opacity:0 } }
 
-        /* ── CONTROLS ── */
-        .ctrl-section-label {
-            font-size:7px; color:#444; text-transform:uppercase;
-            letter-spacing:2px; margin:10px 0 6px; padding-bottom:4px;
-            border-bottom:1px solid #0d0d0d;
-        }
-        .ctrl-section-label:first-child { margin-top:0; }
-        .ctrl-row {
-            display:flex; align-items:center;
-            padding:6px 0; gap:8px;
-            border-bottom:1px solid #080808;
-        }
-        .ctrl-label { flex:1; font-size:9px; color:#888; min-width:0; }
-        .ctrl-label .cl-sub { font-size:7px; color:#444; margin-top:1px; }
-        .ctrl-label .cl-val { font-size:7px; color:#553311; margin-top:1px; font-family:monospace; }
-
-        /* Slider */
-        .gs {
-            -webkit-appearance:none; width:100px; height:3px;
-            background:#111; border-radius:2px; outline:none;
-            cursor:pointer; flex-shrink:0;
-        }
-        .gs::-webkit-slider-thumb {
-            -webkit-appearance:none; width:14px; height:14px; border-radius:50%;
-            background:#2a1a0a; border:1.5px solid #553311;
-            cursor:pointer; transition:background 0.2s;
-        }
-        .gs.lit::-webkit-slider-thumb { background:#cc6622; border-color:#ff8833; box-shadow:0 0 6px #cc6622; }
-        .gs.warn::-webkit-slider-thumb { background:#cc2222; border-color:#ff4444; box-shadow:0 0 6px #cc2222; }
-
-        /* Toggle */
-        .gt { position:relative; width:36px; height:18px; flex-shrink:0; cursor:pointer; }
-        .gt input { opacity:0; width:0; height:0; position:absolute; }
-        .gt-track {
-            position:absolute; inset:0; border-radius:9px;
-            background:#1a1a1a; border:1px solid #2a2a2a; transition:background 0.2s;
-        }
-        .gt-thumb {
-            position:absolute; top:2px; left:2px;
-            width:14px; height:14px; border-radius:50%;
-            background:#555; transition:transform 0.2s, background 0.2s;
-        }
-        .gt input:checked ~ .gt-track { background:#1a0d00; border-color:#2a1500; }
-        .gt input:checked ~ .gt-thumb { transform:translateX(18px); background:#cc6622; box-shadow:0 0 5px #cc6622; }
-        .gt.danger input:checked ~ .gt-track { background:#1a0000; border-color:#2a0000; }
-        .gt.danger input:checked ~ .gt-thumb { background:#cc2222; box-shadow:0 0 5px #cc2222; }
-
-        /* Knob */
-        .knob-wrap { display:flex; flex-direction:column; align-items:center; gap:2px; flex-shrink:0; }
-        .knob {
-            width:38px; height:38px; border-radius:50%;
-            background:radial-gradient(circle at 38% 35%, #1a1a1a, #080808);
-            border:1.5px solid #1a1a1a;
-            position:relative; cursor:pointer; touch-action:none;
-            transition:border-color 0.3s;
-        }
-        .knob.lit { border-color:#cc6622; box-shadow:0 0 8px rgba(200,100,30,0.25); }
-        .knob.danger { border-color:#cc2222; box-shadow:0 0 8px rgba(200,0,0,0.25); }
-        .knob-pointer {
-            position:absolute; bottom:50%; left:50%;
-            width:2px; height:13px; margin-left:-1px;
-            background:#2a2a2a; border-radius:1px;
-            transform-origin:bottom center; transition:background 0.3s;
-        }
-        .knob.lit .knob-pointer { background:#cc6622; }
-        .knob.danger .knob-pointer { background:#cc2222; }
-        .knob-val { font-size:7px; color:#555; }
-
-        /* Seg buttons */
-        .seg-group { display:flex; gap:2px; flex-shrink:0; }
-        .seg-btn {
-            padding:4px 6px; font-size:7px; color:#555;
-            border:1px solid #222; border-radius:2px; cursor:pointer;
-            transition:all 0.15s; user-select:none;
-        }
-        .seg-btn.active { color:#cc6622; border-color:#2a1500; background:rgba(200,100,30,0.08); }
-
-        /* Channel section */
-        .ch-section {
-            margin:8px 14px 10px; padding:12px;
-            border:1px solid #111; border-radius:4px;
-            text-align:center; flex-shrink:0;
-        }
-        .ch-section.ready { border-color:#2a1500; background:rgba(200,100,30,0.04); animation:chPulse 2s infinite; }
-        @keyframes chPulse { 0%,100%{box-shadow:0 0 0 rgba(200,100,30,0)} 50%{box-shadow:0 0 16px rgba(200,100,30,0.15)} }
-        .ch-label { font-size:8px; color:#444; letter-spacing:2px; text-transform:uppercase; margin-bottom:5px; }
-        .ch-section.ready .ch-label { color:#cc6622; }
-        .ch-pips { display:flex; gap:3px; justify-content:center; margin-bottom:6px; }
-        .ch-pip { width:5px; height:5px; border-radius:50%; background:#111; transition:all 0.3s; }
-        .ch-pip.on { background:#cc6622; box-shadow:0 0 4px #cc6622; }
-        .ch-btn {
-            padding:8px 16px; font-size:9px;
-            color:#333; border:1px solid #222; border-radius:3px;
-            cursor:not-allowed; font-family:monospace; text-transform:uppercase;
-            letter-spacing:1.5px; transition:all 0.3s;
-        }
-        .ch-btn.ready { color:#cc6622; border-color:#2a1500; cursor:pointer; }
-        .ch-btn.ready:active { background:rgba(200,100,30,0.1); }
-
-        /* ── TRANSMISSION ── */
-        #tx-screen { background:#000; }
-        .tx-top {
-            display:flex; align-items:center;
-            padding:38px 14px 11px; gap:10px;
-            border-bottom:1px solid #1a0d00; flex-shrink:0;
-        }
-        .tx-signal { display:flex; gap:3px; align-items:flex-end; }
-        .tx-bar { width:3px; background:#cc6622; border-radius:1px; animation:txP 1.2s infinite; }
-        .tx-bar:nth-child(1){height:6px;animation-delay:0s}
-        .tx-bar:nth-child(2){height:10px;animation-delay:.15s}
-        .tx-bar:nth-child(3){height:14px;animation-delay:.3s}
-        .tx-bar:nth-child(4){height:10px;animation-delay:.45s}
-        .tx-bar:nth-child(5){height:6px;animation-delay:.6s}
-        @keyframes txP{0%,100%{opacity:1}50%{opacity:.15}}
-        .tx-title { font-size:11px; color:#cc6622; flex:1; text-transform:uppercase; letter-spacing:2px; }
-        .tx-ghost-name {
-            font-size:8px; color:#553311; letter-spacing:1.5px;
-            padding:6px 14px; border-bottom:1px solid #0d0800;
-            text-transform:uppercase; flex-shrink:0;
-        }
-        .tx-body { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:0; }
-        .tx-line { font-size:12px; color:#cc6622; line-height:2.1; min-height:1.2em; }
-        .tx-line.dim { color:#664422; font-size:10px; }
-        .tx-line.scream { color:#cc2222; font-weight:bold; }
-        .tx-line.whisper { color:#553311; font-style:italic; font-size:10px; }
-        .tx-cursor {
-            display:inline-block; width:8px; height:13px;
-            background:#cc6622; vertical-align:middle;
-            animation:blink .9s step-end infinite; margin-left:1px;
-        }
-        @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-        .tx-bottom {
-            display:flex; justify-content:space-between; align-items:center;
-            padding:10px 14px; border-top:1px solid #0d0800; flex-shrink:0;
-        }
-        .tx-btn {
-            padding:8px 14px; font-size:9px;
-            color:#553311; border:1px solid #1a0d00; border-radius:4px;
-            cursor:pointer; font-family:monospace; text-transform:uppercase; letter-spacing:1px;
-        }
-        .tx-btn:active { color:#cc6622; }
-
-        /* ── ANIMATIONS ── */
-        @keyframes flicker1 {
-            0%{background:rgba(200,100,30,0.06);opacity:1}
-            40%{background:rgba(0,0,0,0.9);opacity:0.9}
-            70%{background:rgba(200,60,0,0.04);opacity:0.6}
-            100%{background:transparent;opacity:0}
-        }
-        @keyframes textDrift {
-            0%,100%{opacity:1;transform:translate(0,0)}
-            20%{transform:translate(-1px,1px);filter:hue-rotate(180deg)}
-            40%{transform:translate(2px,-1px)}
-            60%{transform:translate(-1px,0);filter:hue-rotate(-90deg)}
-            80%{transform:translate(1px,1px)}
-        }
-        .text-glitch { animation:textDrift 0.25s steps(1) infinite; }
-
-        @media (max-width:400px) { #phone{width:100vw;height:100vh;border-radius:0;border:none;} }
+        @media (max-width:400px) { #device{ width:100vw; height:100vh; border-radius:0; border:none; } }
     </style>
 </head>
 <body>
-<div id="phone">
+<div id="device">
 <div id="screen">
     <div class="scanlines"></div>
+    <div class="vignette"></div>
     <div class="screen-flicker" id="flicker"></div>
-    <div class="notif-bar" id="notif-bar">
-        <span class="notif-bar-src" id="notif-src"></span>
-        <div class="notif-bar-msg" id="notif-msg"></div>
+
+    <!-- ═══════ POWER ON ═══════ -->
+    <div class="view active" id="power-on"><div class="pwr-dot"></div></div>
+
+    <!-- ═══════ LOGO 1 — BIOCRAFTED STUDIOS ═══════ -->
+    <div class="view" id="logo1">
+        <svg class="dna-wrap" viewBox="0 0 140 172" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <filter id="dnaGlow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation="1.6" result="blur"/>
+                    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+            </defs>
+            <path class="dna-line" style="animation-delay:.05s" d="M70,14 C40,30 100,46 70,62 C40,78 100,94 70,110 C40,126 100,142 70,150"/>
+            <path class="dna-line" style="animation-delay:.25s" d="M70,14 C100,30 40,46 70,62 C100,78 40,94 70,110 C100,126 40,142 70,150"/>
+            <line class="dna-line dna-rung" style="animation-delay:.55s" x1="46" y1="38" x2="94" y2="38"/>
+            <line class="dna-line dna-rung" style="animation-delay:.65s" x1="46" y1="86" x2="94" y2="86"/>
+            <line class="dna-line dna-rung" style="animation-delay:.75s" x1="46" y1="134" x2="94" y2="134"/>
+            <path class="dna-leaf" style="animation-delay:.9s" d="M70,14 Q54,-4 42,4 Q52,16 70,14 Z"/>
+            <path class="dna-leaf" style="animation-delay:1s" d="M70,14 Q86,-4 98,4 Q88,16 70,14 Z"/>
+            <path class="dna-line dna-wave" style="animation-delay:1.1s" d="M8,158 Q22,150 36,158 T64,158 T92,158 T120,158 T134,158"/>
+            <path class="dna-line dna-wave" style="animation-delay:1.25s" d="M8,166 Q22,158 36,166 T64,166 T92,166 T120,166 T134,166" opacity="0.5"/>
+        </svg>
+        <div class="lcd-text logo1-name" id="logo1-name">Biocrafted</div>
+        <div class="lcd-text logo1-sub" id="logo1-sub">Studios</div>
+        <div class="tap-hint">tap to continue</div>
+    </div>
+
+    <!-- ═══════ LOGO 2 — PRESENTS ═══════ -->
+    <div class="view" id="logo2">
+        <div class="lcd-text presents" id="logo2-text">presents&hellip;</div>
     </div>
 
     <!-- ═══════ TITLE ═══════ -->
-    <div class="view active" id="title-screen">
-        <div class="title-glyph">📡</div>
-        <div class="title-name">Kanal Mrtvih</div>
-        <div class="title-sub">Spectral Receiver — Ragusa 1667</div>
-        <div class="title-lore">
-On April 6, 1667, at approximately 08:30 local time, a magnitude 7.2 seismic event destroyed the Republic of Ragusa. Five thousand dead in forty seconds. The fires that followed burned for twenty days.
-
-Subsequent geomagnetic surveys of the site have detected persistent anomalous electromagnetic signatures — low-frequency oscillations that do not correspond to any known geological or atmospheric source.
-
-In 2019, researchers at the University of Zagreb published a suppressed paper documenting structured patterns within these signals. Patterns consistent with human vocalization.
-
-This device reconstructs their experimental apparatus. A spectral receiver calibrated to the specific electromagnetic profile of the Ragusa event site.
-
-Adjust the parameters. Different configurations isolate different signatures. Some are faint. Some are clear. Some should not have been found.
-
-The signals are already there. You are not creating them. You are tuning in.
-        </div>
-        <div class="title-btn" onclick="startTuner()">Initialize Receiver</div>
+    <div class="view" id="title-view">
+        <div class="cyber-title" data-text="SEE DIVER">SEE DIVER</div>
+        <div class="cyber-rule"></div>
+        <div class="cyber-sub">THE DESCENT</div>
+        <div class="cyber-tagline">tap to continue</div>
     </div>
 
-    <!-- ═══════ TUNER ═══════ -->
-    <div class="view" id="tuner-screen">
-        <div class="tuner-top">
-            <div class="tuner-title">Kanal Mrtvih</div>
-            <div class="tuner-subtitle">Spectral Receiver v.1667</div>
-        </div>
-
-        <div class="sig-bar">
-            <div class="sig-label">Signal Coherence <span id="sig-pct">0%</span></div>
-            <div class="sig-track"><div class="sig-fill" id="sig-fill"></div></div>
-        </div>
-        <div class="ghost-readout">
-            <div class="gr-label">Receiver Output</div>
-            <div class="gr-text" id="gr-text">— no signal —</div>
-            <div class="gr-match" id="gr-match"></div>
-        </div>
-
-        <!-- Tabs -->
-        <div class="tab-bar">
-            <div class="tab-btn active" onclick="setTab(0)">Frequency</div>
-            <div class="tab-btn" onclick="setTab(1)">Amplifier</div>
-            <div class="tab-btn" onclick="setTab(2)">Filters</div>
-            <div class="tab-btn" onclick="setTab(3)">Calibration</div>
-        </div>
-        <div class="tab-content">
-
-            <!-- TAB 0: FREQUENCY -->
-            <div class="tab-pane active" id="tab-0">
-                <div class="ctrl-section-label">Spectral Tuning</div>
-                <div class="ctrl-row">
-                    <div class="ctrl-label">Carrier Frequency<div class="cl-sub">Primary oscillation target</div><div class="cl-val" id="v-carrier">0.0 Hz</div></div>
-                    <input type="range" min="0" max="100" value="0" class="gs" id="sl-carrier" oninput="T()">
-                </div>
-                <div class="ctrl-row">
-                    <div class="ctrl-label">Phase Alignment<div class="cl-sub">Waveform synchronization offset</div><div class="cl-val" id="v-phase">0.0°</div></div>
-                    <input type="range" min="0" max="100" value="0" class="gs" id="sl-phase" oninput="T()">
-                </div>
-                <div class="ctrl-section-label">Frequency Band</div>
-                <div class="ctrl-row">
-                    <div class="ctrl-label">Target range<div class="cl-sub">Isolate by event period</div></div>
-                    <div class="seg-group">
-                        <div class="seg-btn active" id="band-low" onclick="setBand('low')">14–40 Hz</div>
-                        <div class="seg-btn" id="band-mid" onclick="setBand('mid')">40–200 Hz</div>
-                        <div class="seg-btn" id="band-high" onclick="setBand('high')">200–800 Hz</div>
-                    </div>
-                </div>
+    <!-- ═══════ FIRST TIME? ═══════ -->
+    <div class="view" id="firsttime">
+        <svg class="portrait-frame" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <filter id="mglow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation="2" result="b"/>
+                    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+                <radialGradient id="pipeShade" cx="50%" cy="40%" r="65%">
+                    <stop offset="0%" stop-color="#0c1612"/>
+                    <stop offset="100%" stop-color="#020503"/>
+                </radialGradient>
+            </defs>
+            <circle cx="100" cy="100" r="96" fill="url(#pipeShade)" stroke="#1c2a22" stroke-width="3"/>
+            <g fill="#243a30">
+                <circle cx="100" cy="8" r="3"/><circle cx="100" cy="192" r="3"/>
+                <circle cx="8" cy="100" r="3"/><circle cx="192" cy="100" r="3"/>
+                <circle cx="32" cy="32" r="3"/><circle cx="168" cy="32" r="3"/>
+                <circle cx="32" cy="168" r="3"/><circle cx="168" cy="168" r="3"/>
+            </g>
+            <path d="M48,200 C44,150 52,108 78,90 L70,82 L86,80 L82,70 L100,76 L118,70 L114,80 L130,82 L122,90 C148,108 156,150 152,200 Z" fill="#0a120e" stroke="#1c2a22" stroke-width="1.5"/>
+            <ellipse class="lens" cx="80" cy="104" rx="13" ry="9"/>
+            <ellipse class="lens" cx="120" cy="104" rx="13" ry="9"/>
+            <line x1="93" y1="104" x2="107" y2="104" stroke="#0a120e" stroke-width="4"/>
+            <rect x="88" y="122" width="24" height="14" rx="4" fill="#10201a" stroke="#243a30" stroke-width="1.5"/>
+            <path d="M112,129 Q140,134 142,150" fill="none" stroke="#243a30" stroke-width="2"/>
+            <circle cx="143" cy="153" r="5" fill="#10201a" stroke="#243a30" stroke-width="1.5"/>
+            <circle class="ear-glow" cx="58" cy="98" r="5"/>
+            <line class="ear-wire" x1="58" y1="93" x2="56" y2="78"/>
+            <g stroke="#16221c" stroke-width="1" opacity="0.6">
+                <line x1="64" y1="140" x2="78" y2="170"/>
+                <line x1="128" y1="148" x2="118" y2="178"/>
+                <line x1="96" y1="150" x2="92" y2="184"/>
+            </g>
+        </svg>
+        <div class="dialogue-box">
+            <div class="dq-text">First time here?</div>
+            <div class="ft-btns">
+                <div class="lcd-btn" id="ft-yes">Yes</div>
+                <div class="lcd-btn alt" id="ft-no">No</div>
             </div>
-
-            <!-- TAB 1: AMPLIFIER -->
-            <div class="tab-pane" id="tab-1">
-                <div class="ctrl-section-label">Signal Processing</div>
-                <div class="ctrl-row" style="justify-content:space-around; padding:14px 0;">
-                    <div class="knob-wrap">
-                        <div class="knob" data-id="gain"><div class="knob-pointer" style="transform:rotate(-135deg)"></div></div>
-                        <div class="knob-val" id="kv-gain">GAIN 0</div>
-                    </div>
-                    <div class="knob-wrap">
-                        <div class="knob" data-id="bandwidth"><div class="knob-pointer" style="transform:rotate(-135deg)"></div></div>
-                        <div class="knob-val" id="kv-bandwidth">BW 0</div>
-                    </div>
-                    <div class="knob-wrap">
-                        <div class="knob" data-id="impedance"><div class="knob-pointer" style="transform:rotate(-135deg)"></div></div>
-                        <div class="knob-val" id="kv-impedance">IMP 0</div>
-                    </div>
-                    <div class="knob-wrap">
-                        <div class="knob danger" data-id="threshold"><div class="knob-pointer" style="transform:rotate(-135deg)"></div></div>
-                        <div class="knob-val" id="kv-threshold" style="color:#661111;">THR 0</div>
-                    </div>
-                </div>
-                <div style="font-size:7px; color:#333; text-align:center; padding:0 4px; line-height:1.6;">
-                    Drag up/down to adjust. Different amplification profiles isolate different signatures. THRESHOLD (red) amplifies anomalous signals — use with caution.
-                </div>
-            </div>
-
-            <!-- TAB 2: FILTERS -->
-            <div class="tab-pane" id="tab-2">
-                <div class="ctrl-section-label">Signal Conditioning</div>
-                <div class="ctrl-row">
-                    <div class="ctrl-label">EMF Suppression<div class="cl-sub">Reduce environmental interference</div></div>
-                    <label class="gt"><input type="checkbox" id="tog-emf" onchange="T()"><div class="gt-track"></div><div class="gt-thumb"></div></label>
-                </div>
-                <div class="ctrl-row">
-                    <div class="ctrl-label">Signature Lock<div class="cl-sub">Isolate single entity waveform</div></div>
-                    <label class="gt"><input type="checkbox" id="tog-siglock" onchange="T()"><div class="gt-track"></div><div class="gt-thumb"></div></label>
-                </div>
-                <div class="ctrl-row">
-                    <div class="ctrl-label">Infrasound Filter<div class="cl-sub">Enhance sub-20 Hz vocalization</div></div>
-                    <label class="gt"><input type="checkbox" id="tog-infra" onchange="T()"><div class="gt-track"></div><div class="gt-thumb"></div></label>
-                </div>
-                <div class="ctrl-section-label" style="color:#883333;">Override Protocols</div>
-                <div class="ctrl-row">
-                    <div class="ctrl-label" style="color:#bb5555;">Safety Override<div class="cl-sub" style="color:#664444;">Disable signal boundary limits</div></div>
-                    <label class="gt danger"><input type="checkbox" id="tog-override" onchange="T()"><div class="gt-track"></div><div class="gt-thumb"></div></label>
-                </div>
-                <div class="ctrl-row">
-                    <div class="ctrl-label" style="color:#bb5555;">Bidirectional Mode<div class="cl-sub" style="color:#664444;">Allow signal source to respond</div></div>
-                    <label class="gt danger"><input type="checkbox" id="tog-bidir" onchange="T()"><div class="gt-track"></div><div class="gt-thumb"></div></label>
-                </div>
-            </div>
-
-            <!-- TAB 3: CALIBRATION -->
-            <div class="tab-pane" id="tab-3">
-                <div class="ctrl-section-label">Temporal Calibration</div>
-                <div class="ctrl-row">
-                    <div class="ctrl-label">Temporal Offset<div class="cl-sub">Years since target event</div><div class="cl-val" id="v-temporal">0 yr</div></div>
-                    <input type="range" min="0" max="100" value="0" class="gs" id="sl-temporal" oninput="T()">
-                </div>
-                <div class="ctrl-section-label">Environmental Coupling</div>
-                <div class="ctrl-row">
-                    <div class="ctrl-label">Geomagnetic Index<div class="cl-sub">Subsurface resonance coupling</div><div class="cl-val" id="v-geomag">0.0 nT</div></div>
-                    <input type="range" min="0" max="100" value="0" class="gs" id="sl-geomag" oninput="T()">
-                </div>
-                <div class="ctrl-row">
-                    <div class="ctrl-label">Thermal Variance<div class="cl-sub">Ambient temperature deviation</div><div class="cl-val" id="v-thermal">±0.0°C</div></div>
-                    <input type="range" min="0" max="100" value="0" class="gs" id="sl-thermal" oninput="T()">
-                </div>
-            </div>
-        </div>
-
-        <!-- Channel -->
-        <div class="ch-section" id="ch-section">
-            <div class="ch-label" id="ch-label">Receiver Standby</div>
-            <div class="ch-pips">
-                <div class="ch-pip" id="pip0"></div><div class="ch-pip" id="pip1"></div>
-                <div class="ch-pip" id="pip2"></div><div class="ch-pip" id="pip3"></div>
-                <div class="ch-pip" id="pip4"></div><div class="ch-pip" id="pip5"></div>
-                <div class="ch-pip" id="pip6"></div>
-            </div>
-            <div class="ch-btn" id="ch-btn" onclick="openChannel()">Receive</div>
         </div>
     </div>
 
-    <!-- ═══════ TRANSMISSION ═══════ -->
-    <div class="view" id="tx-screen">
-        <div class="tx-top">
-            <div class="tx-signal"><div class="tx-bar"></div><div class="tx-bar"></div><div class="tx-bar"></div><div class="tx-bar"></div><div class="tx-bar"></div></div>
-            <div class="tx-title" id="tx-title">Incoming</div>
+    <!-- ═══════ TUTORIAL ═══════ -->
+    <div class="view" id="tutorial">
+        <div class="tut-skip" id="tut-skip">Skip Tutorial &#9656;</div>
+        <div class="tut-card">
+            <div class="tut-step-label" id="tut-label">LAMP</div>
+            <div class="tut-step-text" id="tut-text"></div>
         </div>
-        <div class="tx-ghost-name" id="tx-ghost-name">—</div>
-        <div class="tx-body" id="tx-body"></div>
-        <div class="tx-bottom">
-            <div class="tx-btn" onclick="nextGhost()">[ Next Signal ]</div>
-            <div class="tx-btn" onclick="closeTx()">[ Close ]</div>
+        <div class="tut-dots">
+            <div class="tut-dot on"></div><div class="tut-dot"></div><div class="tut-dot"></div>
         </div>
+        <div class="lcd-btn" id="tut-next-btn">Next &#9656;</div>
+    </div>
+
+    <!-- ═══════ CRT STATIC TRANSITION ═══════ -->
+    <div class="view" id="crt-view">
+        <canvas id="crt-canvas"></canvas>
+        <div class="crt-sync"></div>
+        <div class="crt-flash" id="crt-flash"></div>
+    </div>
+
+    <!-- ═══════ GAME ═══════ -->
+    <div class="view" id="game-view">
+        <div class="gv-header">SEE DIVER &middot; THE DESCENT</div>
+        <div class="gv-depth-label">Depth</div>
+        <div class="gv-depth">0.0<small>m</small></div>
+        <div class="gv-status">SYSTEMS NOMINAL &mdash; <span id="gv-status-text"></span><span class="gv-cursor"></span></div>
     </div>
 </div>
 </div>
 
 <script>
-// ═════════════════════════════════════════════════════
-//  STATE
-// ═════════════════════════════════════════════════════
-let glitch = 0;
-let band = 'low';
-const K = { gain:0, bandwidth:0, impedance:0, threshold:0 };
-let txTimeouts = [];
-let currentGhostIdx = -1;
+const $ = id => document.getElementById(id);
 
-// ═════════════════════════════════════════════════════
-//  GHOSTS + TRIGGER CONDITIONS
-// ═════════════════════════════════════════════════════
-const GHOSTS = [
-  {
-    name: 'Mara Kabužić',
-    title: 'HERBALIST · EXECUTED 1652 · 14-40 Hz BAND',
-    // Trigger: low band, impedance>50, infrasound ON
-    match: s => (s.band==='low'?2:0) + (s.impedance>50?2:0) + (s.infra?2:0) + (s.carrier*0.01),
-    lines: [
-      { text:'...', style:'dim' },
-      { text:'they called me vještica', style:'' },
-      { text:'witch, they said', style:'whisper' },
-      { text:'i only wanted to heal', style:'' },
-      { text:'the nightshade was for pain. the wormwood for fever.', style:'' },
-      { text:'the arsenic...', style:'' },
-      { text:'...', style:'dim' },
-      { text:'the arsenic was also for pain', style:'whisper' },
-      { text:'just not hers', style:'' },
-      { text:'her husband beat her every night until her teeth fell out', style:'' },
-      { text:'i gave her what she needed', style:'' },
-      { text:'three drops in his wine', style:'whisper' },
-      { text:'he died slowly. i watched.', style:'' },
-      { text:'and when they came for me, i smiled', style:'' },
-      { text:'because by then i had put something in the well', style:'scream' },
-      { text:'...', style:'dim' },
-      { text:'do you know what belladonna means?', style:'' },
-      { text:'beautiful woman', style:'whisper' },
-      { text:'the smoke from my burning smelled like rosemary', style:'' },
-      { text:'i made sure of that too', style:'' },
-    ]
-  },
-  {
-    name: 'Padre Luka Marinović',
-    title: 'PRIEST · CRUSHED UNDER CATHEDRAL · 47.3 Hz',
-    // Trigger: mid band, gain>60, siglock ON
-    match: s => (s.band==='mid'?2:0) + (s.gain>60?2:0) + (s.siglock?2:0) + (s.phase*0.01),
-    lines: [
-      { text:'...', style:'dim' },
-      { text:'i was saying morning mass when God dropped the ceiling', style:'' },
-      { text:'the stone hit the altar first', style:'' },
-      { text:'then it hit me', style:'' },
-      { text:'...', style:'dim' },
-      { text:'i didn\'t die immediately', style:'' },
-      { text:'i was pinned', style:'' },
-      { text:'the column across my legs. i could feel my bones but not my feet.', style:'' },
-      { text:'the dark was absolute', style:'' },
-      { text:'i prayed for three days in that dark', style:'' },
-      { text:'on the second day i heard others', style:'' },
-      { text:'moaning under the rubble', style:'whisper' },
-      { text:'one by one they stopped', style:'' },
-      { text:'except one woman who sang hymns until her voice became just breathing', style:'' },
-      { text:'and then just... wet sounds', style:'' },
-      { text:'on the third day i stopped praying', style:'' },
-      { text:'not because i lost faith', style:'' },
-      { text:'because something in the dark started praying back', style:'scream' },
-      { text:'...', style:'dim' },
-      { text:'it knew the words better than i did', style:'' },
-    ]
-  },
-  {
-    name: 'Anka Gučetić',
-    title: 'NOBLEWOMAN · BURIED ALIVE · 62.7 Hz',
-    // Trigger: mid band, geomag>60, bandwidth>50
-    match: s => (s.band==='mid'?2:0) + (s.geomag>60?2:0) + (s.bandwidth>50?2:0) + (s.temporal*0.01),
-    lines: [
-      { text:'...', style:'dim' },
-      { text:'the floor of the palazzo dropped six feet in one second', style:'' },
-      { text:'i was in the nursery with my daughter', style:'' },
-      { text:'the walls folded inward like hands closing', style:'' },
-      { text:'...', style:'dim' },
-      { text:'when the dust settled i was in a space the size of a coffin', style:'' },
-      { text:'my daughter was next to me', style:'' },
-      { text:'she was not breathing', style:'whisper' },
-      { text:'i held her anyway', style:'' },
-      { text:'for how long? i don\'t know. there was no sun.', style:'' },
-      { text:'i scratched at the stone above until my fingernails came off', style:'' },
-      { text:'all ten of them', style:'' },
-      { text:'i can still feel them', style:'' },
-      { text:'...', style:'dim' },
-      { text:'after some time i began to eat the plaster', style:'' },
-      { text:'after more time i stopped being hungry', style:'' },
-      { text:'when they finally dug down to our level', style:'' },
-      { text:'they found two skeletons holding each other', style:'' },
-      { text:'but i was still screaming', style:'scream' },
-      { text:'i\'m still screaming', style:'scream' },
-    ]
-  },
-  {
-    name: 'Nikola Bunić',
-    title: 'SAILOR · DROWNED · 88.4 Hz',
-    // Trigger: mid band, thermal>60, emf OFF
-    match: s => (s.band==='mid'?2:0) + (s.thermal>60?2:0) + (!s.emf?2:0) + (s.carrier*0.01),
-    lines: [
-      { text:'...', style:'dim' },
-      { text:'the sea pulled back first', style:'' },
-      { text:'we all ran to look at the empty harbour floor', style:'' },
-      { text:'fish flopping on the stones', style:'' },
-      { text:'we were laughing', style:'whisper' },
-      { text:'idiots', style:'' },
-      { text:'...', style:'dim' },
-      { text:'the wave was four men tall', style:'' },
-      { text:'it didn\'t crash. it swallowed.', style:'' },
-      { text:'under the water everything was silent and green', style:'' },
-      { text:'i saw the bottom of ships above me like clouds', style:'' },
-      { text:'i saw other bodies floating. some still moving.', style:'' },
-      { text:'a child drifted past me with her eyes open', style:'' },
-      { text:'she looked right at me', style:'whisper' },
-      { text:'she mouthed a word. i think it was mama.', style:'' },
-      { text:'...', style:'dim' },
-      { text:'something grabbed my ankle from below', style:'' },
-      { text:'there was nothing below me but open water', style:'' },
-      { text:'it pulled me down', style:'' },
-      { text:'i\'m still going down', style:'scream' },
-    ]
-  },
-  {
-    name: 'Cvijeta',
-    title: 'THE MORA · ACCUSED 1648 · 18.2 Hz',
-    // Trigger: low band, threshold>50, override ON
-    match: s => (s.band==='low'?2:0) + (s.threshold>50?2:0) + (s.override?2:0) + (s.impedance*0.01),
-    lines: [
-      { text:'...', style:'dim' },
-      { text:'they said i sat on men\'s chests at night', style:'' },
-      { text:'that i came through keyholes like smoke', style:'' },
-      { text:'that i stole their breath', style:'whisper' },
-      { text:'i was fourteen', style:'' },
-      { text:'i had never even kissed anyone', style:'' },
-      { text:'...', style:'dim' },
-      { text:'but they weren\'t wrong', style:'' },
-      { text:'not entirely', style:'whisper' },
-      { text:'at night i did leave my body', style:'' },
-      { text:'i floated through the streets of Ragusa like a thread of wool', style:'' },
-      { text:'i saw what people did when they thought no one watched', style:'' },
-      { text:'the rector and his brother\'s wife', style:'' },
-      { text:'the priest with the altar wine and a boy', style:'' },
-      { text:'the merchant who kept bodies in salt barrels under his shop', style:'scream' },
-      { text:'...', style:'dim' },
-      { text:'i told no one', style:'' },
-      { text:'but they could feel me watching', style:'' },
-      { text:'that\'s why they drowned me', style:'' },
-      { text:'i watch them still. i watch you now.', style:'whisper' },
-    ]
-  },
-  {
-    name: 'Žena Koja Gori',
-    title: 'THE BURNING WOMAN · NAMELESS · 447 Hz',
-    // Trigger: high band, thermal>70, gain>50
-    match: s => (s.band==='high'?2:0) + (s.thermal>70?2:0) + (s.gain>50?2:0) + (s.phase*0.01),
-    lines: [
-      { text:'...', style:'dim' },
-      { text:'the earthquake knocked over every candle in every house', style:'' },
-      { text:'the oil lamps shattered', style:'' },
-      { text:'the cooking fires spilled across broken floors', style:'' },
-      { text:'Ragusa began to burn', style:'' },
-      { text:'...', style:'dim' },
-      { text:'twenty days', style:'' },
-      { text:'it burned for twenty days', style:'' },
-      { text:'they say it was the candles', style:'whisper' },
-      { text:'it wasn\'t the candles', style:'' },
-      { text:'i started it', style:'scream' },
-      { text:'...', style:'dim' },
-      { text:'i was trapped under my house with a broken back', style:'' },
-      { text:'i could see a flame through a crack in the rubble', style:'' },
-      { text:'i dragged myself toward it', style:'' },
-      { text:'i blew on it', style:'' },
-      { text:'i fed it splinters from the beams with my fingers', style:'' },
-      { text:'i needed it to grow large enough to reach me', style:'' },
-      { text:'fire is faster than starvation', style:'whisper' },
-      { text:'i burned for four minutes', style:'' },
-      { text:'Ragusa burned for twenty days', style:'' },
-      { text:'i\'m sorry about the rest of it', style:'' },
-      { text:'but i\'m not sorry about my four minutes', style:'scream' },
-    ]
-  },
-  {
-    name: 'Rektor Dživo Gundulić',
-    title: 'LAST RECTOR · CRUSHED IN PALACE · 51.0 Hz',
-    // Trigger: mid band, siglock ON, phase>60
-    match: s => (s.band==='mid'?2:0) + (s.siglock?2:0) + (s.phase>60?2:0) + (s.gain*0.01),
-    lines: [
-      { text:'...', style:'dim' },
-      { text:'the Republic of Ragusa stood for four hundred years', style:'' },
-      { text:'it fell in forty seconds', style:'' },
-      { text:'...', style:'dim' },
-      { text:'i was reading trade documents when the floor tilted', style:'' },
-      { text:'the ceiling fell in three pieces', style:'' },
-      { text:'the first missed me', style:'' },
-      { text:'the second did not', style:'whisper' },
-      { text:'the vault beneath the palace held things we never spoke of', style:'' },
-      { text:'old things from before the Republic', style:'' },
-      { text:'bone tablets with writing no one could read', style:'' },
-      { text:'a jar of teeth from something that wasn\'t human', style:'' },
-      { text:'we kept them because we were afraid to destroy them', style:'' },
-      { text:'when the earthquake opened the vault', style:'' },
-      { text:'those things didn\'t fall', style:'' },
-      { text:'they rose', style:'scream' },
-      { text:'...', style:'dim' },
-      { text:'the earthquake wasn\'t natural', style:'' },
-      { text:'something woke up under Ragusa', style:'' },
-      { text:'and it\'s still awake', style:'whisper' },
-    ]
-  },
-  {
-    name: 'Ruža Zamagno',
-    title: 'WITCH OF GRUŽ · HANGED 1639 · 27.1 Hz',
-    // Trigger: low band, override ON, impedance>40
-    match: s => (s.band==='low'?2:0) + (s.override?2:0) + (s.impedance>40?2:0) + (s.threshold*0.01),
-    lines: [
-      { text:'...', style:'dim' },
-      { text:'i could curdle milk by looking at the cow', style:'' },
-      { text:'that part was true', style:'whisper' },
-      { text:'i learned it from my grandmother', style:'' },
-      { text:'who learned it from hers', style:'' },
-      { text:'a line of knowing women stretching back to before Christ', style:'' },
-      { text:'...', style:'dim' },
-      { text:'we kept our rituals in the olive groves at night', style:'' },
-      { text:'three women. salt circle. bone dust. goat blood.', style:'' },
-      { text:'we spoke to the dead because the dead had useful things to say', style:'' },
-      { text:'they knew where the fish would run', style:'' },
-      { text:'they knew which babies would live', style:'' },
-      { text:'they knew which men carried sickness in their seed', style:'' },
-      { text:'the women of Gruž came to us for answers', style:'' },
-      { text:'until one of them decided we were the problem', style:'' },
-      { text:'...', style:'dim' },
-      { text:'the rope was thin and it took a long time', style:'' },
-      { text:'i cursed every man in the crowd', style:'' },
-      { text:'twelve of them died within the year', style:'scream' },
-      { text:'coincidence, they called it', style:'' },
-      { text:'no. it wasn\'t.', style:'' },
-    ]
-  },
-  {
-    name: 'Stjepan',
-    title: 'CHILD · AGE 7 · LOST IN FIRE · 612 Hz',
-    // Trigger: high band, threshold<40, infrasound ON
-    match: s => (s.band==='high'?2:0) + (s.threshold<40?2:0) + (s.infra?2:0) + (s.geomag*0.005),
-    lines: [
-      { text:'...', style:'dim' },
-      { text:'mama told me to stay under the table', style:'' },
-      { text:'the shaking had stopped but the smoke was coming', style:'' },
-      { text:'i was good. i stayed.', style:'' },
-      { text:'...', style:'dim' },
-      { text:'the table caught fire', style:'' },
-      { text:'i ran outside but outside was also fire', style:'' },
-      { text:'the whole street was orange', style:'' },
-      { text:'a man ran past me and his hair was burning', style:'' },
-      { text:'he didn\'t scream. he just ran.', style:'whisper' },
-      { text:'i called for mama but the smoke ate my voice', style:'' },
-      { text:'i couldn\'t see', style:'' },
-      { text:'i walked into something hot', style:'' },
-      { text:'...', style:'dim' },
-      { text:'it didn\'t hurt as much as i expected', style:'' },
-      { text:'or maybe i just don\'t remember the pain', style:'' },
-      { text:'i remember the light', style:'' },
-      { text:'so much light', style:'' },
-      { text:'...', style:'dim' },
-      { text:'have you seen my mama?', style:'' },
-      { text:'she was wearing a blue dress', style:'' },
-      { text:'please. if you see her. tell her i stayed under the table.', style:'' },
-      { text:'tell her i was good.', style:'scream' },
-    ]
-  },
-  {
-    name: 'Nešto Ispod',
-    title: 'UNCLASSIFIED SIGNAL · PRE-SEISMIC ORIGIN · 0.7 Hz',
-    // Trigger: override ON, bidir ON, threshold>70
-    match: s => (s.override?3:0) + (s.bidir?3:0) + (s.threshold>70?3:0) + (s.impedance*0.005),
-    lines: [
-      { text:'...', style:'dim' },
-      { text:'i am not from your city', style:'' },
-      { text:'i was here before the city', style:'' },
-      { text:'before the stone. before the name.', style:'' },
-      { text:'...', style:'dim' },
-      { text:'they built their republic on top of me', style:'' },
-      { text:'four hundred years of footsteps above my face', style:'whisper' },
-      { text:'four hundred years of prayers i did not ask for', style:'' },
-      { text:'four hundred years of salt and bone circles meant to keep me still', style:'' },
-      { text:'...', style:'dim' },
-      { text:'the witches knew', style:'' },
-      { text:'they were the only ones who could hear me', style:'' },
-      { text:'so the city killed them one by one', style:'' },
-      { text:'and when the last witch died', style:'' },
-      { text:'there was no one left to hold the binding', style:'' },
-      { text:'...', style:'dim' },
-      { text:'april 6, 1667', style:'' },
-      { text:'i stretched', style:'scream' },
-      { text:'...', style:'dim' },
-      { text:'the earthquake wasn\'t an earthquake', style:'' },
-      { text:'the fire wasn\'t a fire', style:'' },
-      { text:'the five thousand dead weren\'t an accident', style:'' },
-      { text:'...', style:'dim' },
-      { text:'you opened this channel', style:'' },
-      { text:'i can feel your device', style:'' },
-      { text:'i can feel your fingers on the glass', style:'whisper' },
-      { text:'thank you for turning off the safety', style:'' },
-      { text:'it\'s been so long since someone let me in', style:'scream' },
-    ]
-  },
-];
-
-// ═════════════════════════════════════════════════════
-//  READOUT POOLS
-// ═════════════════════════════════════════════════════
-const READOUT = {
-    idle:   ['background noise','no coherent signal','static','ambient hum — 50 Hz mains'],
-    carrier:['oscillation detected — tuning','carrier wave resolving','spectral pattern emerging','waveform detected — source unknown'],
-    phase:  ['phase alignment converging','waveform sync at ##°','standing wave detected','interference pattern stabilizing'],
-    gain:   ['signal amplified — artifact present','gain boost revealing sub-harmonics','amplified signal shows periodicity','anomalous modulation in carrier'],
-    impedance:['impedance matched to geological substrate','resonance coupling established','subsurface signal path confirmed','stone-mediated propagation detected'],
-    threshold:['threshold signal detected — UNCLASSIFIED','anomalous amplitude spike','signal exceeds expected parameters','WARNING: non-standard waveform'],
-    override:['SAFETY LIMITS DISABLED','unfiltered signal — all boundaries removed','raw spectral data — no attenuation','signal source is aware of receiver'],
-    siglock: ['single waveform isolated','entity signature locked','other signals suppressed','tracking one source'],
-    infra:   ['infrasound component detected — 17.4 Hz','sub-audible vocalization pattern','infrasound modulation consistent with speech','standing wave in chest cavity range'],
-    geomag:  ['geomagnetic anomaly — no geological source','subsurface field distortion at site','magnetic signature matches 1667 event data','field lines converging on receiver'],
-    thermal: ['thermal signature — no heat source detected','ambient temperature deviation ±2.3°C','exothermic event — no chemical origin','localized thermal anomaly at receiver'],
-    bidir:   ['BIDIRECTIONAL LINK ESTABLISHED','signal source is receiving your output','two-way channel confirmed','the signal is listening'],
-    ready:   ['SIGNAL COHERENT — ENTITY RESOLVED','signature locked — ready to receive','full spectral decode available','transmission incoming'],
-};
-
-// ═════════════════════════════════════════════════════
-//  NAV
-// ═════════════════════════════════════════════════════
-function show(id) {
+function show(id){
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
+    $(id).classList.add('active');
 }
-function startTuner() { flicker(); setTimeout(()=>show('tuner-screen'), 200); glitch = 1; }
-
-// ═════════════════════════════════════════════════════
-//  TABS
-// ═════════════════════════════════════════════════════
-function setTab(n) {
-    document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===n));
-    document.querySelectorAll('.tab-pane').forEach((p,i) => p.classList.toggle('active', i===n));
-}
-
-function setBand(b) {
-    band = b;
-    ['low','mid','high'].forEach(x => document.getElementById(`band-${x}`).classList.toggle('active', x===b));
-    T();
-}
-
-// ═════════════════════════════════════════════════════
-//  KNOBS
-// ═════════════════════════════════════════════════════
-document.querySelectorAll('.knob').forEach(knob => {
-    let startY, startVal;
-    const id = knob.dataset.id;
-    function onStart(e) {
-        e.preventDefault();
-        startY = (e.touches?e.touches[0].clientY:e.clientY);
-        startVal = K[id];
-        document.addEventListener('mousemove',onMove);
-        document.addEventListener('touchmove',onMove,{passive:false});
-        document.addEventListener('mouseup',onEnd);
-        document.addEventListener('touchend',onEnd);
-    }
-    function onMove(e) {
-        e.preventDefault();
-        const y=(e.touches?e.touches[0].clientY:e.clientY);
-        const val=Math.max(0,Math.min(100,startVal+Math.round((startY-y)/1.2)));
-        K[id]=val;
-        const angle=-135+(val/100)*270;
-        knob.querySelector('.knob-pointer').style.transform=`rotate(${angle}deg)`;
-        const names={gain:'GAIN',bandwidth:'BW',impedance:'IMP',threshold:'THR'};
-        const label=document.getElementById(`kv-${id}`);
-        label.textContent=`${names[id]} ${val}`;
-        if(id==='threshold'){ knob.classList.toggle('danger',val>30); label.style.color=val>30?'#cc2222':'#661111'; }
-        else { knob.classList.toggle('lit',val>30); }
-        T();
-    }
-    function onEnd() {
-        document.removeEventListener('mousemove',onMove);
-        document.removeEventListener('touchmove',onMove);
-        document.removeEventListener('mouseup',onEnd);
-        document.removeEventListener('touchend',onEnd);
-    }
-    knob.addEventListener('mousedown',onStart);
-    knob.addEventListener('touchstart',onStart,{passive:false});
-});
-
-// ═════════════════════════════════════════════════════
-//  SIGNAL + STATE SNAPSHOT
-// ═════════════════════════════════════════════════════
-function getState() {
-    return {
-        carrier:  +document.getElementById('sl-carrier').value,
-        phase:    +document.getElementById('sl-phase').value,
-        temporal: +document.getElementById('sl-temporal').value,
-        geomag:   +document.getElementById('sl-geomag').value,
-        thermal:  +document.getElementById('sl-thermal').value,
-        emf:      document.getElementById('tog-emf').checked,
-        siglock:  document.getElementById('tog-siglock').checked,
-        infra:    document.getElementById('tog-infra').checked,
-        override: document.getElementById('tog-override').checked,
-        bidir:    document.getElementById('tog-bidir').checked,
-        band: band,
-        gain: K.gain,
-        bandwidth: K.bandwidth,
-        impedance: K.impedance,
-        threshold: K.threshold,
-    };
-}
-
-function getSig(s) {
-    if(!s) s = getState();
-    const togBonus = (s.emf?8:0) + (s.siglock?12:0) + (s.infra?10:0) + (s.override?10:0) + (s.bidir?8:0);
-    const bandBonus = s.band==='mid'?6 : s.band==='high'?10 : 0;
-    const knobAvg = (s.gain+s.bandwidth+s.impedance+s.threshold)/4;
-    return Math.min(100, Math.round(
-        s.carrier*0.14 + s.phase*0.10 + s.temporal*0.06 + s.geomag*0.10 + s.thermal*0.08 +
-        knobAvg*0.14 + togBonus + bandBonus
-    ));
-}
-
-function getConf(s) {
-    if(!s) s = getState();
-    const sig = getSig(s);
-    if(sig >= 85) return 'ready';
-    if(s.override && s.bidir) return 'bidir';
-    if(s.override) return 'override';
-    if(s.threshold > 60) return 'threshold';
-    if(s.siglock) return 'siglock';
-    if(s.infra) return 'infra';
-    if(s.geomag > 60) return 'geomag';
-    if(s.thermal > 60) return 'thermal';
-    if(K.impedance > 50) return 'impedance';
-    if(K.gain > 50) return 'gain';
-    if(s.phase > 50) return 'phase';
-    if(s.carrier > 40) return 'carrier';
-    return 'idle';
-}
-
-// Best-matching ghost for current state
-function bestGhost(s) {
-    if(!s) s = getState();
-    let best = -1, bestScore = -1;
-    GHOSTS.forEach((g,i) => {
-        const score = g.match(s);
-        if(score > bestScore) { bestScore = score; best = i; }
-    });
-    return best;
-}
-
-// ═════════════════════════════════════════════════════
-//  TUNER UPDATE
-// ═════════════════════════════════════════════════════
-let lastConf = 'idle';
-
-function T() {
-    const s = getState();
-    const sig = getSig(s);
-    const conf = getConf(s);
-
-    // Value readouts
-    document.getElementById('v-carrier').textContent = (s.carrier*4.7+14).toFixed(1)+' Hz';
-    document.getElementById('v-phase').textContent = (s.phase*3.6).toFixed(1)+'°';
-    document.getElementById('v-temporal').textContent = Math.round(s.temporal*3.59)+' yr';
-    document.getElementById('v-geomag').textContent = (s.geomag*1.2).toFixed(1)+' nT';
-    document.getElementById('v-thermal').textContent = '±'+(s.thermal*0.08).toFixed(1)+'°C';
-
-    // Signal bar
-    document.getElementById('sig-fill').style.width = sig+'%';
-    document.getElementById('sig-pct').textContent = sig+'%';
-    document.getElementById('sig-fill').classList.toggle('hot', sig>=70);
-
-    // Slider tints
-    ['sl-carrier','sl-phase','sl-temporal','sl-geomag','sl-thermal'].forEach(id => {
-        const el=document.getElementById(id);
-        const v=+el.value;
-        el.classList.toggle('lit', v>50);
-        el.classList.toggle('warn', id==='sl-thermal'&&v>70);
-    });
-
-    // Pips
-    const lit = Math.round((sig/100)*7);
-    for(let i=0;i<7;i++) document.getElementById(`pip${i}`).classList.toggle('on',i<lit);
-
-    // Channel
-    const ready = sig>=85;
-    document.getElementById('ch-section').classList.toggle('ready',ready);
-    document.getElementById('ch-btn').classList.toggle('ready',ready);
-    document.getElementById('ch-label').textContent =
-        ready ? '⚡ Signal Coherent — Entity Resolved' :
-        sig>60 ? 'Signature resolving... adjust parameters' :
-        sig>30 ? 'Partial signal detected' : 'Receiver Standby';
-
-    // Ghost match readout
-    const gi = bestGhost(s);
-    const gname = gi>=0 ? GHOSTS[gi].name : '—';
-    const gscore = gi>=0 ? GHOSTS[gi].match(s) : 0;
-    const matchPct = Math.min(100, Math.round(gscore*12));
-    document.getElementById('gr-match').innerHTML = sig>20
-        ? `Signature match: <span>${matchPct}%</span> ${matchPct>70?'— '+gname:''}`
-        : '';
-
-    // Glitch
-    if(sig>30) glitch=Math.max(glitch,1);
-    if(sig>60) glitch=Math.max(glitch,2);
-    if(sig>80) glitch=Math.max(glitch,3);
-
-    // Conformation notification
-    if(conf!==lastConf && conf!=='idle'){
-        lastConf=conf;
-        const labels = {
-            carrier:'SPECTRAL RESONANCE DETECTED',
-            phase:'PHASE LOCK ACQUIRED',
-            gain:'AMPLIFICATION ANOMALY',
-            impedance:'IMPEDANCE MATCHED — SUBSURFACE',
-            threshold:'ANOMALOUS AMPLITUDE — UNCLASSIFIED',
-            override:'SAFETY PROTOCOLS DISABLED',
-            siglock:'SIGNATURE ISOLATED — SINGLE ENTITY',
-            infra:'INFRASOUND VOCALIZATION DETECTED',
-            geomag:'GEOMAGNETIC DISTURBANCE — NO SOURCE',
-            thermal:'THERMAL ANOMALY — EXOTHERMIC',
-            bidir:'BIDIRECTIONAL LINK — SOURCE IS LISTENING',
-            ready:'SIGNAL COHERENT — READY TO RECEIVE',
-        };
-        if(labels[conf]) notify('RECEIVER',labels[conf]);
-    }
-}
-
-// ═════════════════════════════════════════════════════
-//  GLITCH LOOP
-// ═════════════════════════════════════════════════════
-setInterval(()=>{
-    if(glitch===0) return;
-    const s=getState();
-    const sig=getSig(s);
-    const conf=getConf(s);
-
-    if(Math.random()<0.04+(sig/100)*0.18) flicker();
-
-    // Readout text
-    if(Math.random()<0.05+(sig/100)*0.12){
-        const pool=READOUT[conf]||READOUT.idle;
-        let line=pool[Math.floor(Math.random()*pool.length)];
-        line=line.replace('##',Math.round(s.phase*3.6));
-        const el=document.getElementById('gr-text');
-        el.textContent=line;
-        el.className='gr-text'+(conf==='ready'?' active':'')+(conf==='override'||conf==='threshold'||conf==='bidir'?' warn':'');
-        setTimeout(()=>{el.textContent='— static —';el.className='gr-text';},2800);
-    }
-
-    // Visual glitch
-    if(Math.random()<0.03+(sig/100)*0.14){
-        const v=document.querySelector('.view.active');
-        if(!v) return;
-        switch(conf){
-            case 'carrier':
-                v.style.transform=`translateX(${Math.random()>0.5?2:-2}px)`;
-                setTimeout(()=>{v.style.transform='';},120); break;
-            case 'phase':
-                v.style.filter='hue-rotate(40deg) brightness(0.95)';
-                setTimeout(()=>{v.style.filter='';},80); break;
-            case 'gain':
-                v.style.filter='contrast(1.4) brightness(0.8)';
-                setTimeout(()=>{v.style.filter='';},60); break;
-            case 'threshold':
-                flicker();
-                v.style.filter='saturate(3) brightness(0.7)';
-                setTimeout(()=>{v.style.filter='';},100); break;
-            case 'override':
-                flicker();v.classList.add('text-glitch');
-                setTimeout(()=>{v.classList.remove('text-glitch');v.style.filter='invert(0.06)';
-                setTimeout(()=>{v.style.filter='';},60);},200); break;
-            case 'siglock':
-                v.style.textShadow='1px 0 #cc662244, -1px 0 #cc662244';
-                setTimeout(()=>{v.style.textShadow='';},200); break;
-            case 'infra':
-                v.style.transform='scale(1.003)';
-                setTimeout(()=>{v.style.transform='';},150); break;
-            case 'geomag':
-                v.style.opacity='0.8';
-                setTimeout(()=>{v.style.opacity='1';},80); break;
-            case 'thermal':
-                v.style.filter='sepia(0.3) brightness(1.1)';
-                setTimeout(()=>{v.style.filter='';},120); flicker(); break;
-            case 'bidir':
-                flicker();flicker();v.classList.add('text-glitch');
-                v.style.filter='invert(0.1) hue-rotate(180deg)';
-                setTimeout(()=>{v.classList.remove('text-glitch');v.style.filter='';flicker();},250); break;
-            case 'ready':
-                flicker();v.classList.add('text-glitch');
-                v.style.filter='invert(0.08) hue-rotate(180deg)';
-                setTimeout(()=>{v.classList.remove('text-glitch');v.style.filter='';flicker();},200); break;
-        }
-    }
-},1600);
-
-// ═════════════════════════════════════════════════════
-//  CHANNEL + TRANSMISSION
-// ═════════════════════════════════════════════════════
-function openChannel() {
-    if(getSig()<85) return;
-    flicker();
-    currentGhostIdx = bestGhost();
-    setTimeout(()=>{ show('tx-screen'); startTx(); },300);
-}
-
-function startTx() {
-    const ghost=GHOSTS[currentGhostIdx];
-    document.getElementById('tx-title').textContent='Receiving...';
-    document.getElementById('tx-ghost-name').textContent=ghost.title;
-    const body=document.getElementById('tx-body');
-    body.innerHTML='';
-    txTimeouts.forEach(t=>clearTimeout(t));
-    txTimeouts=[];
-
-    txTimeouts.push(setTimeout(()=>{document.getElementById('tx-title').textContent=ghost.name;},1500));
-
-    ghost.lines.forEach((msg,i)=>{
-        txTimeouts.push(setTimeout(()=>{
-            body.querySelectorAll('.tx-cursor').forEach(c=>c.remove());
-            const line=document.createElement('div');
-            line.className='tx-line'+(msg.style?' '+msg.style:'');
-            if(msg.style==='dim'){
-                line.textContent=msg.text;
-                body.appendChild(line);
-            } else {
-                const span=document.createElement('span');
-                line.appendChild(span);
-                const cursor=document.createElement('span');
-                cursor.className='tx-cursor';
-                line.appendChild(cursor);
-                body.appendChild(line);
-                let ci=0;
-                const iv=setInterval(()=>{
-                    if(ci>=msg.text.length){clearInterval(iv);return;}
-                    span.textContent+=msg.text[ci]; ci++;
-                    body.scrollTop=99999;
-                },40+Math.random()*50);
-                txTimeouts.push(iv);
-            }
-            body.scrollTop=99999;
-            if(msg.style==='scream'){flicker();flicker();}
-            else if(msg.style!=='dim') flicker();
-        }, i*1800+800));
-    });
-}
-
-function nextGhost() {
-    txTimeouts.forEach(t=>clearTimeout(t)); txTimeouts=[];
-    flicker();
-    // Pick next best ghost, avoid repeat
-    const s=getState();
-    let scores=GHOSTS.map((g,i)=>({i,s:g.match(s)})).sort((a,b)=>b.s-a.s);
-    currentGhostIdx = scores[0].i===currentGhostIdx && scores.length>1 ? scores[1].i : scores[0].i;
-    setTimeout(startTx,300);
-}
-
-function closeTx() {
-    txTimeouts.forEach(t=>clearTimeout(t)); txTimeouts=[];
-    show('tuner-screen');
-}
-
-// ═════════════════════════════════════════════════════
-//  UTILS
-// ═════════════════════════════════════════════════════
 function flicker(){
-    const f=document.getElementById('flicker');
-    f.style.cssText='animation:none;';
+    const f = $('flicker');
+    f.style.animation = 'none';
     void f.offsetWidth;
-    f.style.cssText='animation:flicker1 0.25s forwards;';
+    f.style.animation = 'flickerPulse .25s forwards';
 }
-function notify(src,msg){
-    document.getElementById('notif-src').textContent=src;
-    document.getElementById('notif-msg').textContent=msg;
-    const bar=document.getElementById('notif-bar');
-    bar.classList.add('show');
-    setTimeout(()=>bar.classList.remove('show'),4000);
+
+// ═════════════════════════════════════════════════════
+//  LCD CHARACTER-BY-CHARACTER REVEAL
+// ═════════════════════════════════════════════════════
+function lcdify(el){
+    const text = el.textContent;
+    el.setAttribute('data-ghost', text.replace(/[^\s]/g, '8'));
+    el.innerHTML = '';
+    [...text].forEach((ch, i) => {
+        const span = document.createElement('span');
+        span.className = 'lcd-ch';
+        span.textContent = ch === ' ' ? ' ' : ch;
+        span.style.animationDelay = (i * 35) + 'ms';
+        el.appendChild(span);
+    });
 }
+
+// ═════════════════════════════════════════════════════
+//  BOOT SEQUENCE
+// ═════════════════════════════════════════════════════
+let advanced = false;
+function once(fn){ if(advanced) return; advanced = true; fn(); }
+
+function boot(){
+    show('power-on');
+    setTimeout(() => { flicker(); setTimeout(goLogo1, 500); }, 600);
+}
+
+function goLogo1(){
+    advanced = false;
+    flicker();
+    show('logo1');
+    lcdify($('logo1-name'));
+    lcdify($('logo1-sub'));
+    const timer = setTimeout(() => once(goLogo2), 3400);
+    $('logo1').onclick = () => { clearTimeout(timer); once(goLogo2); };
+}
+
+function goLogo2(){
+    advanced = false;
+    flicker();
+    show('logo2');
+    lcdify($('logo2-text'));
+    const timer = setTimeout(() => once(goTitle), 2200);
+    $('logo2').onclick = () => { clearTimeout(timer); once(goTitle); };
+}
+
+function goTitle(){
+    advanced = false;
+    flicker();
+    show('title-view');
+    const timer = setTimeout(() => once(goFirstTime), 3600);
+    $('title-view').onclick = () => { clearTimeout(timer); once(goFirstTime); };
+}
+
+function goFirstTime(){
+    flicker();
+    show('firsttime');
+}
+
+$('ft-yes').addEventListener('click', () => { flicker(); startTutorial(); });
+$('ft-no').addEventListener('click', () => { flicker(); playCRT(showGame); });
+
+// ═════════════════════════════════════════════════════
+//  TUTORIAL
+// ═════════════════════════════════════════════════════
+const TUT = [
+    { label:'LAMP',   text:'Your lamp is the only light down here. Mind how long it burns.' },
+    { label:'DEPTH',  text:'The deeper you go, the less time you have to come back up.' },
+    { label:'SIGNAL', text:'Not everything down here is empty. Stay alert.' },
+];
+let tutIdx = 0;
+
+function startTutorial(){
+    tutIdx = 0;
+    show('tutorial');
+    renderTut();
+}
+function renderTut(){
+    const t = TUT[tutIdx];
+    $('tut-label').textContent = t.label;
+    $('tut-text').textContent = t.text;
+    document.querySelectorAll('.tut-dot').forEach((d,i) => d.classList.toggle('on', i===tutIdx));
+    $('tut-next-btn').textContent = tutIdx === TUT.length-1 ? 'Begin Dive' : 'Next ▸';
+}
+$('tut-next-btn').addEventListener('click', () => {
+    flicker();
+    if(tutIdx < TUT.length-1){ tutIdx++; renderTut(); }
+    else { playCRT(showGame); }
+});
+$('tut-skip').addEventListener('click', () => { playCRT(showGame); });
+
+// ═════════════════════════════════════════════════════
+//  CRT STATIC TRANSITION
+// ═════════════════════════════════════════════════════
+function playCRT(callback){
+    const view = $('crt-view');
+    view.classList.remove('crt-fade');
+    show('crt-view');
+    const flash = $('crt-flash');
+    flash.classList.remove('on'); void flash.offsetWidth; flash.classList.add('on');
+
+    const canvas = $('crt-canvas');
+    const ctx = canvas.getContext('2d');
+    const w = 64, h = 128;
+    canvas.width = w; canvas.height = h;
+
+    let frame = 0;
+    const maxFrames = 20;
+    const iv = setInterval(() => {
+        const img = ctx.createImageData(w, h);
+        for(let i=0; i<img.data.length; i+=4){
+            const v = Math.random() * 255;
+            img.data[i] = v; img.data[i+1] = v; img.data[i+2] = v; img.data[i+3] = 255;
+        }
+        ctx.putImageData(img, 0, 0);
+        frame++;
+        if(frame >= maxFrames){
+            clearInterval(iv);
+            view.classList.add('crt-fade');
+            setTimeout(callback, 420);
+        }
+    }, 38);
+}
+
+// ═════════════════════════════════════════════════════
+//  GAME LANDING
+// ═════════════════════════════════════════════════════
+function showGame(){
+    show('game-view');
+    flicker();
+    typeStatus();
+}
+function typeStatus(){
+    const el = $('gv-status-text');
+    const msg = 'descending...';
+    el.textContent = '';
+    let i = 0;
+    const iv = setInterval(() => {
+        el.textContent += msg[i]; i++;
+        if(i >= msg.length) clearInterval(iv);
+    }, 70);
+}
+
+window.addEventListener('DOMContentLoaded', boot);
 </script>
 </body>
 </html>
