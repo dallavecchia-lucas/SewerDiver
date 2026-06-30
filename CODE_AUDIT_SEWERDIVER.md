@@ -1,10 +1,40 @@
 # Code Audit — SewerDiver: Descent (`sewerdiver420_v2.html`)
 
 Scope: the uploaded single-file build (`SEWER DIVER — DESCENT`, ~4300 lines: ~1080
-lines CSS, ~3140 lines JS). This file is not yet part of this repository (the
-repo's current `index.html` is a different game, "Kanal Mrtvih"); this audit
-covers the uploaded build as provided. Focus: efficiency, redundancy, and — as
-specifically requested — the infinite procedural level-generation mechanism.
+lines CSS, ~3140 lines JS). This file is not part of the repo's original game
+(`index.html` is a different game, "Kanal Mrtvih"); the audited build now lives
+alongside it as **`sewerdiver-descent.html`**. Focus: efficiency, redundancy,
+and — as specifically requested — the infinite procedural level-generation
+mechanism.
+
+## Status: findings applied to `sewerdiver-descent.html`
+
+All five numbered findings and the general-redundancy sweep below were
+implemented directly in `sewerdiver-descent.html`, with two items left as
+explicit, documented decisions rather than auto-applied (see "Deferred"
+below). Verification: `node --check` on the extracted script, a normal
+playthrough smoke test (title → boot-tutorial skip → start → move/mine, zero
+console/page errors), and a synthetic stress test that force-generated and
+rendered **62 tiers deep** (`growTier`/`update`/`render`/`doRespawn` called
+directly via a debug hook) with zero console/page errors — the existing
+death/lose flow ("you dived 3269m — 62 levels deep") fired correctly when the
+forced off-air-line oxygen drain ran the player out of health, confirming the
+new code paths hold up well past any depth a normal playthrough would reach.
+
+| # | Finding | Status |
+|---|---|---|
+| 1 | Unbounded thermal-vent loop in `genTier` | **Applied** — capped at `Math.min(i,6)`, matching `hazFor`'s pattern |
+| 2 | Flat unbucketed entity arrays scanned in full every frame | **Applied** — every push site now tags `.tier`; `update()`, `updateCreatures()`, `render()`, `drawKelp()`, `drawScenery()`, and the mixer/scrap pickup loops (now a shared `collectNear()`) all filter to `[tAt(player.y)-1, tAt(player.y)+2]` via new `entTierLo()`/`entTierHi()` helpers |
+| 3 | `doRespawn()` quadratic-ish full-array re-filtering | **Applied** — rewritten to one `O(total)` counting pass over `oreCells`/`mixers` instead of `tiers × .filter()` calls |
+| 4 | `map` grows forever, never released | **Deferred** — the audit itself flagged this as a product decision (does upward backtracking need to stay meaningful?), not a clear-cut bug; left as-is rather than guessing |
+| 5 | `_oreCanv`/`_oreLv` caches grow forever | **Applied** — new `evictFarCache()` mirrors the existing `prerenderTiles` tier-window eviction in `render()` |
+| — | ~21 duplicated particle-spawn blocks | **Applied** — collapsed into `burst()` (sparks) / `bubbleBurst()` (bubbles); two single bespoke bubble spawns (diver's trail, ambient bubbles) left as-is since they aren't actually duplicated |
+| — | Duplicated pickup scan (`update()` vs `updateCompanion()`) | **Applied** — shared `collectNear(list,x,y,r,onHit)` |
+| — | Per-frame `hex2rgb`/`idTier` recomputation for static data | **Applied** — `RES[id].rgb` and `RES[id].tier` cached at creation (`R()`) and on re-skin (`setResCol()`); `drawOre`/`drawMixer` read the cached fields |
+| — | `plotPxC`/`plotShimmer` duplicated coordinate transform | **Applied** — both now call a shared `faceXY(face,perp,par)` |
+| — | `SCENE`/`ORE_ARCH` likely-dead fallback tables | **Left untouched** — audit flagged these as low-confidence ("likely dead… unless there's a path I missed"); removing code I'm not certain is unreachable wasn't worth the risk for a cosmetic cleanup |
+
+## Original audit (as written before the fixes above)
 
 ## How the infinite descent actually works
 
